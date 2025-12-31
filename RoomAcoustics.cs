@@ -13,7 +13,6 @@ public class RoomAcoustics : MonoBehaviour
     [SerializeField] private float fmodMax = 2f;
     [Header("Sets the exit value for FMOD, set below the mapped range eg 0f")]
     [SerializeField] private float resetExitValue = 0f;
-    [SerializeField] private bool debugGlobalParam = false; 
  
 
     void OnTriggerEnter(Collider other)
@@ -54,47 +53,31 @@ public class RoomAcoustics : MonoBehaviour
         float dx = Mathf.Min(p.x - b.min.x, b.max.x - p.x);
         float dz = Mathf.Min(p.z - b.min.z, b.max.z - p.z);
 
-        // Normalize using wallRange, NOT room size
+        // Wall normalisation
         float proxX = 1f - Mathf.Clamp01(dx / wallRange);
         float proxZ = 1f - Mathf.Clamp01(dz / wallRange);
 
-        // Nearest wall dominates
+        // Nearest wall takes precedence
         float wallProximity = Mathf.Max(proxX, proxZ);
             
         SetWallProximity(wallProximity);
-
-        if (debugGlobalParam)
-        {
-            float currentValue;
-            float finalValue;
-
-            FMOD.RESULT result =
-                RuntimeManager.StudioSystem.getParameterByName(
-                    fmodParamGlobal,
-                    out currentValue,
-                    out finalValue
-                );
-
-            if (result == FMOD.RESULT.OK)
-            {
-                Debug.Log($"[FMOD] {fmodParamGlobal} current={currentValue}, final={finalValue}");
-            }
-            else
-            {
-                Debug.LogError($"FMOD getParameter failed: {result}");
-            }
-        }
-     
     }
 
     //mapping of value to 1 -2 
+    float lastFmodValue = float.MinValue;
+    const float UPDATE_EPSILON = 0.01f;
+
     void SetWallProximity(float value)
     {
         float fmodValue = Mathf.Lerp(fmodMin, fmodMax, value);
 
+        if (Mathf.Abs(fmodValue - lastFmodValue) < UPDATE_EPSILON)
+            return;
+
+        lastFmodValue = fmodValue;
+
         RuntimeManager.StudioSystem.setParameterByName(fmodParamGlobal, fmodValue);
         fmodInstance.Invoke(fmodValue);
-      //  Debug.Log("RoomAcoustics " +fmodValue);
     }
     
     //resets to zero - no mapping
